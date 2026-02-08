@@ -77,19 +77,20 @@ class MessageHandler(commands.Cog):
         discord_id = str(message.author.id)
         username = message.author.name
         image_url = message.attachments[0].url
+        filename = message.attachments[0].filename
 
         try:
             # Add or update player in database
             self.db.add_or_update_player(discord_id, username)
 
-            # Check if player already submitted today
-            if self.db.has_submitted_today(discord_id):
-                await self._send_already_submitted_message(message)
-                logger.info(f"Duplicate submission attempt by {username} ({discord_id})")
+            # Check if this filename has already been submitted by this player
+            if self.db.has_duplicate_filename(discord_id, filename):
+                await self._send_duplicate_file_message(message, filename)
+                logger.info(f"Duplicate filename detected: {username} ({discord_id}) - {filename}")
                 return
 
             # Log the submission
-            self.db.log_submission(discord_id, image_url)
+            self.db.log_submission(discord_id, image_url, filename)
 
             # Get updated stats
             stats = self.db.get_player_stats(discord_id)
@@ -127,26 +128,32 @@ class MessageHandler(commands.Cog):
         await message.add_reaction('✅')
         await message.channel.send(embed=embed)
 
-    async def _send_already_submitted_message(self, message: discord.Message):
+    async def _send_duplicate_file_message(self, message: discord.Message, filename: str):
         """
-        Send a message indicating the player has already submitted today.
+        Send a message indicating the file has already been submitted.
 
         Args:
             message: The Discord message object
+            filename: The duplicate filename
         """
         embed = discord.Embed(
-            title="Already Logged",
-            description=f"{message.author.mention}, you've already logged your practice today!",
+            title="⚠️ Duplicate File Detected",
+            description=f"{message.author.mention}, you've already uploaded this file!",
             color=discord.Color.orange()
         )
         embed.add_field(
-            name="Come back tomorrow",
-            value="You can only submit once per day. Keep up the consistency! 💪",
+            name="Filename",
+            value=f"`{filename}`",
             inline=False
         )
-        embed.set_footer(text="One submission per day")
+        embed.add_field(
+            name="Tip",
+            value="To submit a new session, use a different screenshot or rename your file.",
+            inline=False
+        )
+        embed.set_footer(text="Duplicate prevention active")
 
-        await message.add_reaction('⏰')
+        await message.add_reaction('⚠️')
         await message.channel.send(embed=embed)
 
 

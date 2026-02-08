@@ -314,5 +314,3 @@ For issues and questions, please check:
 3. Discord Developer Documentation
 
 ---
-
-Built with ❤️ for competitive gamers who take their aim training seriously! 🎯

@@ -59,6 +59,7 @@ class Database:
                     submission_date DATE NOT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                     image_url TEXT,
+                    filename TEXT,
                     FOREIGN KEY (discord_id) REFERENCES players(discord_id)
                 )
             """)
@@ -114,39 +115,40 @@ class Database:
             raise
 
     # Submission Management
-    def has_submitted_today(self, discord_id: str) -> bool:
+    def has_duplicate_filename(self, discord_id: str, filename: str) -> bool:
         """
-        Check if a player has already submitted today.
+        Check if a player has already submitted a file with this filename.
 
         Args:
             discord_id: Discord user ID
+            filename: Name of the file being submitted
 
         Returns:
-            True if player has submitted today, False otherwise
+            True if filename already exists for this player, False otherwise
         """
         cursor = self.conn.cursor()
-        today = date.today().isoformat()
 
         try:
             cursor.execute("""
                 SELECT COUNT(*) as count
                 FROM submissions
-                WHERE discord_id = ? AND submission_date = ?
-            """, (discord_id, today))
+                WHERE discord_id = ? AND filename = ?
+            """, (discord_id, filename))
 
             result = cursor.fetchone()
             return result['count'] > 0
         except sqlite3.Error as e:
-            logger.error(f"Error checking submission: {e}")
+            logger.error(f"Error checking duplicate filename: {e}")
             return False
 
-    def log_submission(self, discord_id: str, image_url: str):
+    def log_submission(self, discord_id: str, image_url: str, filename: str):
         """
         Log a new submission and increment counters.
 
         Args:
             discord_id: Discord user ID
             image_url: URL of the submitted image
+            filename: Name of the submitted file
         """
         cursor = self.conn.cursor()
         today = date.today().isoformat()
@@ -154,9 +156,9 @@ class Database:
         try:
             # Insert submission record
             cursor.execute("""
-                INSERT INTO submissions (discord_id, submission_date, image_url)
-                VALUES (?, ?, ?)
-            """, (discord_id, today, image_url))
+                INSERT INTO submissions (discord_id, submission_date, image_url, filename)
+                VALUES (?, ?, ?, ?)
+            """, (discord_id, today, image_url, filename))
 
             # Increment counters
             cursor.execute("""
@@ -167,7 +169,7 @@ class Database:
             """, (discord_id,))
 
             self.conn.commit()
-            logger.info(f"Submission logged for {discord_id}")
+            logger.info(f"Submission logged for {discord_id}: {filename}")
         except sqlite3.Error as e:
             logger.error(f"Error logging submission: {e}")
             self.conn.rollback()
