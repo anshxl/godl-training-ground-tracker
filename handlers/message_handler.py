@@ -6,6 +6,7 @@ Monitors designated channel for image attachments and logs submissions.
 import logging
 import discord
 from discord.ext import commands
+from utils.image_validator import validate_aim_screenshot
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,15 @@ class MessageHandler(commands.Cog):
                 logger.info(f"Duplicate filename detected: {username} ({discord_id}) - {filename}")
                 return
 
+            # Validate image using Gemini VLM
+            logger.info(f"Validating screenshot from {username} ({discord_id})")
+            is_valid, validation_reason = await validate_aim_screenshot(image_url)
+
+            if not is_valid:
+                await self._send_invalid_screenshot_message(message, validation_reason)
+                logger.warning(f"Invalid screenshot rejected: {username} ({discord_id}) - {validation_reason}")
+                return
+
             # Log the submission
             self.db.log_submission(discord_id, image_url, filename)
 
@@ -146,14 +156,47 @@ class MessageHandler(commands.Cog):
             value=f"`{filename}`",
             inline=False
         )
-        embed.add_field(
-            name="Tip",
-            value="To submit a new session, use a different screenshot or rename your file.",
-            inline=False
-        )
+        # embed.add_field(
+        #     name="Tip",
+        #     value="To submit a new session, use a different screenshot or rename your file.",
+        #     inline=False
+        # )
         embed.set_footer(text="Duplicate prevention active")
 
         await message.add_reaction('⚠️')
+        await message.channel.send(embed=embed)
+
+    async def _send_invalid_screenshot_message(self, message: discord.Message, reason: str):
+        """
+        Send a message indicating the screenshot was rejected.
+
+        Args:
+            message: The Discord message object
+            reason: Reason for rejection
+        """
+        embed = discord.Embed(
+            title="❌ Invalid Screenshot",
+            description=f"{message.author.mention}, your submission was not accepted.",
+            color=discord.Color.red()
+        )
+        embed.add_field(
+            name="Reason",
+            value=reason,
+            inline=False
+        )
+        # embed.add_field(
+        #     name="Valid Submissions Must Include:",
+        #     value=(
+        #         "✅ **Mission Complete** or results screen\n"
+        #         "✅ Performance stats (accuracy, kills, headshots, etc.)\n"
+        #         "✅ From aim training modes or practice ranges\n\n"
+        #         "Examples: Call of Duty practice mode, Aimlabs, Kovaak's, 3D Aim Trainer"
+        #     ),
+        #     inline=False
+        # )
+        embed.set_footer(text="Please submit a valid aim training screenshot 🎯")
+
+        await message.add_reaction('❌')
         await message.channel.send(embed=embed)
 
 

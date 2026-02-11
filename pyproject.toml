@@ -9,6 +9,8 @@ dependencies = [
     "discord-py>=2.6.4",
     "python-dotenv>=1.2.1",
     "pytz>=2025.2",
+    "google-genai>=1.0.0",
+    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]
