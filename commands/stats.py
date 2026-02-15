@@ -33,13 +33,13 @@ class StatsCommands(commands.Cog):
             leaderboard = self.db.get_leaderboard()
 
             if not leaderboard:
-                await ctx.send("No submissions yet! Be the first to log your training.")
+                await ctx.send("No submissions yet.")
                 return
 
             # Create embed
             embed = discord.Embed(
-                title="🏆 Weekly Leaderboard",
-                description="Top aim trainers this week",
+                title="Weekly Leaderboard",
+                # description="Top aim trainers this week",
                 color=discord.Color.gold()
             )
 
@@ -73,7 +73,7 @@ class StatsCommands(commands.Cog):
             )
 
             # Add total players count
-            embed.set_footer(text=f"Total players: {len(leaderboard)} | Keep grinding! 💪")
+            embed.set_footer(text=f"Total players: {len(leaderboard)}")
 
             await ctx.send(embed=embed)
             logger.info(f"Leaderboard requested by {ctx.author.name}")

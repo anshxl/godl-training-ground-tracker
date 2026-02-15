@@ -77,21 +77,6 @@ async def daily_reset_job(bot):
         bot.db.reset_daily_counters()
         logger.info("Daily reset completed successfully")
 
-        # Optional: Send notification to tracking channel
-        try:
-            channel = bot.get_channel(bot.tracking_channel_id)
-            if channel:
-                import discord
-                embed = discord.Embed(
-                    title="🌅 Daily Reset",
-                    description="Daily counters have been reset! Time for a new day of training.",
-                    color=discord.Color.blue()
-                )
-                embed.set_footer(text="Counters reset automatically at midnight")
-                await channel.send(embed=embed)
-        except Exception as e:
-            logger.error(f"Error sending daily reset notification: {e}")
-
     except Exception as e:
         logger.error(f"Error in daily reset job: {e}")
 
@@ -107,59 +92,6 @@ async def weekly_reset_job(bot):
         logger.info("Running weekly reset job...")
         bot.db.reset_weekly_counters()
         logger.info("Weekly reset completed successfully")
-
-        # Optional: Send notification with last week's leaderboard
-        try:
-            channel = bot.get_channel(bot.tracking_channel_id)
-            if channel:
-                import discord
-
-                # Get final leaderboard before reset
-                leaderboard = bot.db.get_leaderboard()
-
-                embed = discord.Embed(
-                    title="🏆 Weekly Reset - Final Standings",
-                    description="Congratulations to last week's top performers!",
-                    color=discord.Color.gold()
-                )
-
-                if leaderboard:
-                    # Show top 5
-                    leaderboard_text = []
-                    for player in leaderboard[:5]:
-                        rank = player['rank']
-                        username = player['username']
-                        weekly = player['weekly_count']
-
-                        medal = ""
-                        if rank == 1:
-                            medal = "🥇"
-                        elif rank == 2:
-                            medal = "🥈"
-                        elif rank == 3:
-                            medal = "🥉"
-                        else:
-                            medal = f"`{rank}.`"
-
-                        leaderboard_text.append(f"{medal} **{username}** - {weekly} sessions")
-
-                    embed.add_field(
-                        name="Top 5 Last Week",
-                        value="\n".join(leaderboard_text),
-                        inline=False
-                    )
-
-                embed.add_field(
-                    name="New Week Started!",
-                    value="Weekly counters have been reset. Let's aim even higher this week! 🎯",
-                    inline=False
-                )
-                embed.set_footer(text="Keep up the consistency!")
-
-                await channel.send(embed=embed)
-
-        except Exception as e:
-            logger.error(f"Error sending weekly reset notification: {e}")
 
     except Exception as e:
         logger.error(f"Error in weekly reset job: {e}")

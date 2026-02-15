@@ -287,6 +287,95 @@ class Database:
                 return player['rank']
         return None
 
+    # Admin Functions
+    def set_player_counter(self, discord_id: str, counter_type: str, value: int):
+        """
+        Set a player's counter to a specific value.
+
+        Args:
+            discord_id: Discord user ID
+            counter_type: 'daily' or 'weekly'
+            value: The value to set
+
+        Raises:
+            ValueError: If counter_type is invalid or value is negative
+        """
+        if counter_type not in ['daily', 'weekly']:
+            raise ValueError("counter_type must be 'daily' or 'weekly'")
+
+        if value < 0:
+            raise ValueError("Value cannot be negative")
+
+        cursor = self.conn.cursor()
+        column = f"{counter_type}_count"
+
+        try:
+            cursor.execute(f"""
+                UPDATE counters
+                SET {column} = ?
+                WHERE discord_id = ?
+            """, (value, discord_id))
+
+            if cursor.rowcount == 0:
+                raise ValueError(f"Player with discord_id {discord_id} not found")
+
+            self.conn.commit()
+            logger.info(f"Set {counter_type} counter to {value} for {discord_id}")
+        except sqlite3.Error as e:
+            logger.error(f"Error setting {counter_type} counter: {e}")
+            self.conn.rollback()
+            raise
+
+    def adjust_player_counter(self, discord_id: str, counter_type: str, adjustment: int):
+        """
+        Adjust a player's counter by adding a value (can be negative).
+
+        Args:
+            discord_id: Discord user ID
+            counter_type: 'daily' or 'weekly'
+            adjustment: The value to add (use negative to subtract)
+
+        Raises:
+            ValueError: If counter_type is invalid or result would be negative
+        """
+        if counter_type not in ['daily', 'weekly']:
+            raise ValueError("counter_type must be 'daily' or 'weekly'")
+
+        cursor = self.conn.cursor()
+        column = f"{counter_type}_count"
+
+        try:
+            # Get current value
+            cursor.execute(f"""
+                SELECT {column}
+                FROM counters
+                WHERE discord_id = ?
+            """, (discord_id,))
+
+            result = cursor.fetchone()
+            if not result:
+                raise ValueError(f"Player with discord_id {discord_id} not found")
+
+            current_value = result[0]
+            new_value = current_value + adjustment
+
+            if new_value < 0:
+                raise ValueError(f"Adjustment would result in negative value ({new_value})")
+
+            # Update the counter
+            cursor.execute(f"""
+                UPDATE counters
+                SET {column} = ?
+                WHERE discord_id = ?
+            """, (new_value, discord_id))
+
+            self.conn.commit()
+            logger.info(f"Adjusted {counter_type} counter by {adjustment} for {discord_id} (new value: {new_value})")
+        except sqlite3.Error as e:
+            logger.error(f"Error adjusting {counter_type} counter: {e}")
+            self.conn.rollback()
+            raise
+
     def close(self):
         """Close the database connection."""
         if self.conn:

@@ -74,6 +74,26 @@ class AdminCommands(commands.Cog):
             inline=False
         )
         embed.add_field(
+            name="!admin set @user daily <number>",
+            value="Set a player's daily counter to a specific value",
+            inline=False
+        )
+        embed.add_field(
+            name="!admin set @user weekly <number>",
+            value="Set a player's weekly counter to a specific value",
+            inline=False
+        )
+        embed.add_field(
+            name="!admin add @user daily <number>",
+            value="Add to a player's daily counter (use negative to subtract)",
+            inline=False
+        )
+        embed.add_field(
+            name="!admin add @user weekly <number>",
+            value="Add to a player's weekly counter (use negative to subtract)",
+            inline=False
+        )
+        embed.add_field(
             name="!admin info",
             value="Display bot configuration information",
             inline=False
@@ -194,6 +214,108 @@ class AdminCommands(commands.Cog):
         except Exception as e:
             logger.error(f"Error resetting weekly counters: {e}")
             await ctx.send("An error occurred while resetting weekly counters.")
+
+    @admin.group(name='set', invoke_without_command=True)
+    async def set_counter(self, ctx, member: discord.Member = None, counter_type: str = None, value: int = None):
+        """
+        Set a player's counter to a specific value.
+
+        Usage: !admin set @user <daily|weekly> <number>
+        """
+        if not self._is_admin(ctx):
+            await ctx.send("❌ You don't have permission to use admin commands.")
+            return
+
+        if not member or not counter_type or value is None:
+            await ctx.send(
+                "❌ Invalid usage. Correct format:\n"
+                "`!admin set @user daily <number>` or `!admin set @user weekly <number>`"
+            )
+            return
+
+        if counter_type not in ['daily', 'weekly']:
+            await ctx.send("❌ Counter type must be 'daily' or 'weekly'")
+            return
+
+        if value < 0:
+            await ctx.send("❌ Value cannot be negative")
+            return
+
+        try:
+            discord_id = str(member.id)
+            username = member.display_name
+
+            # Ensure player exists
+            self.db.add_or_update_player(discord_id, username)
+
+            # Set the counter
+            self.db.set_player_counter(discord_id, counter_type, value)
+
+            embed = discord.Embed(
+                title="✅ Counter Updated",
+                description=f"Set **{member.mention}**'s {counter_type} counter to **{value}**",
+                color=discord.Color.green()
+            )
+            await ctx.send(embed=embed)
+            logger.info(f"Admin {ctx.author.name} set {member.display_name}'s {counter_type} counter to {value}")
+
+        except ValueError as e:
+            await ctx.send(f"❌ Error: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error setting counter: {e}")
+            await ctx.send("❌ An error occurred while updating the counter.")
+
+    @admin.group(name='add', invoke_without_command=True)
+    async def add_counter(self, ctx, member: discord.Member = None, counter_type: str = None, adjustment: int = None):
+        """
+        Add to a player's counter (use negative to subtract).
+
+        Usage: !admin add @user <daily|weekly> <number>
+        """
+        if not self._is_admin(ctx):
+            await ctx.send("❌ You don't have permission to use admin commands.")
+            return
+
+        if not member or not counter_type or adjustment is None:
+            await ctx.send(
+                "❌ Invalid usage. Correct format:\n"
+                "`!admin add @user daily <number>` or `!admin add @user weekly <number>`\n"
+                "Use negative numbers to subtract (e.g., -1)"
+            )
+            return
+
+        if counter_type not in ['daily', 'weekly']:
+            await ctx.send("❌ Counter type must be 'daily' or 'weekly'")
+            return
+
+        try:
+            discord_id = str(member.id)
+            username = member.display_name
+
+            # Ensure player exists
+            self.db.add_or_update_player(discord_id, username)
+
+            # Adjust the counter
+            self.db.adjust_player_counter(discord_id, counter_type, adjustment)
+
+            # Get new stats
+            stats = self.db.get_player_stats(discord_id)
+            new_value = stats['daily_count'] if counter_type == 'daily' else stats['weekly_count']
+
+            action = "Added" if adjustment >= 0 else "Subtracted"
+            embed = discord.Embed(
+                title="✅ Counter Updated",
+                description=f"{action} **{abs(adjustment)}** to **{member.mention}**'s {counter_type} counter\nNew value: **{new_value}**",
+                color=discord.Color.green()
+            )
+            await ctx.send(embed=embed)
+            logger.info(f"Admin {ctx.author.name} adjusted {member.display_name}'s {counter_type} counter by {adjustment}")
+
+        except ValueError as e:
+            await ctx.send(f"❌ Error: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error adjusting counter: {e}")
+            await ctx.send("❌ An error occurred while updating the counter.")
 
     @admin.command(name='info')
     async def info(self, ctx):

@@ -126,14 +126,14 @@ class MessageHandler(commands.Cog):
             stats: Player statistics dictionary
         """
         embed = discord.Embed(
-            title="✅ Training Logged!",
+            title="Training Logged!",
             description=f"Great work, {message.author.mention}!",
             color=discord.Color.green()
         )
         embed.add_field(name="Daily Count", value=f"{stats['daily_count']}", inline=True)
         embed.add_field(name="Weekly Count", value=f"{stats['weekly_count']}", inline=True)
         embed.set_thumbnail(url=message.author.avatar.url if message.author.avatar else None)
-        embed.set_footer(text="Keep up the grind! 🎯")
+        # embed.set_footer(text="Keep up the grind! 🎯")
 
         await message.add_reaction('✅')
         await message.channel.send(embed=embed)
@@ -194,7 +194,7 @@ class MessageHandler(commands.Cog):
         #     ),
         #     inline=False
         # )
-        embed.set_footer(text="Please submit a valid aim training screenshot 🎯")
+        embed.set_footer(text="Submit a valid screenshot")
 
         await message.add_reaction('❌')
         await message.channel.send(embed=embed)
