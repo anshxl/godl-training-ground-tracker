@@ -287,6 +287,93 @@ class Database:
                 return player['rank']
         return None
 
+    def get_alltime_leaderboard(self) -> List[Dict[str, Any]]:
+        """
+        Get all-time leaderboard based on total submissions.
+
+        Returns:
+            List of dictionaries with player stats, sorted by total submissions descending
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT
+                    p.discord_id,
+                    p.username,
+                    COUNT(s.id) as total_submissions
+                FROM players p
+                LEFT JOIN submissions s ON p.discord_id = s.discord_id
+                GROUP BY p.discord_id, p.username
+                ORDER BY total_submissions DESC, p.username ASC
+            """)
+
+            results = cursor.fetchall()
+            leaderboard = []
+            for idx, row in enumerate(results, start=1):
+                leaderboard.append({
+                    'rank': idx,
+                    'discord_id': row['discord_id'],
+                    'username': row['username'],
+                    'total_submissions': row['total_submissions']
+                })
+            return leaderboard
+        except sqlite3.Error as e:
+            logger.error(f"Error getting all-time leaderboard: {e}")
+            return []
+
+    def get_player_alltime_stats(self, discord_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get all-time stats for a specific player.
+
+        Args:
+            discord_id: Discord user ID
+
+        Returns:
+            Dictionary with player all-time stats or None if player not found
+        """
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT
+                    p.username,
+                    COUNT(s.id) as total_submissions,
+                    MIN(s.timestamp) as first_submission,
+                    MAX(s.timestamp) as last_submission
+                FROM players p
+                LEFT JOIN submissions s ON p.discord_id = s.discord_id
+                WHERE p.discord_id = ?
+                GROUP BY p.discord_id, p.username
+            """, (discord_id,))
+
+            result = cursor.fetchone()
+            if result:
+                return {
+                    'username': result['username'],
+                    'total_submissions': result['total_submissions'],
+                    'first_submission': result['first_submission'],
+                    'last_submission': result['last_submission']
+                }
+            return None
+        except sqlite3.Error as e:
+            logger.error(f"Error getting player all-time stats: {e}")
+            return None
+
+    def get_player_alltime_rank(self, discord_id: str) -> Optional[int]:
+        """
+        Get a player's rank on the all-time leaderboard.
+
+        Args:
+            discord_id: Discord user ID
+
+        Returns:
+            Player's all-time rank (1-indexed) or None if not found
+        """
+        leaderboard = self.get_alltime_leaderboard()
+        for player in leaderboard:
+            if player['discord_id'] == discord_id:
+                return player['rank']
+        return None
+
     # Admin Functions
     def set_player_counter(self, discord_id: str, counter_type: str, value: int):
         """

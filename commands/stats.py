@@ -52,15 +52,15 @@ class StatsCommands(commands.Cog):
                 weekly = player['weekly_count']
 
                 # Medal emojis for top 3
-                medal = ""
-                if rank == 1:
-                    medal = "🥇"
-                elif rank == 2:
-                    medal = "🥈"
-                elif rank == 3:
-                    medal = "🥉"
-                else:
-                    medal = f"`{rank}.`"
+                medal = f"`{rank}.`"
+                # if rank == 1:
+                #     medal = "🥇"
+                # elif rank == 2:
+                #     medal = "🥈"
+                # elif rank == 3:
+                #     medal = "🥉"
+                # else:
+                #     medal = f"`{rank}.`"
 
                 leaderboard_text.append(
                     f"{medal} **{username}** - Daily: {daily} | Weekly: {weekly}"
@@ -102,8 +102,10 @@ class StatsCommands(commands.Cog):
                 )
                 return
 
-            # Get player rank
-            rank = self.db.get_player_rank(discord_id)
+            # Get player ranks
+            weekly_rank = self.db.get_player_rank(discord_id)
+            alltime_stats = self.db.get_player_alltime_stats(discord_id)
+            alltime_rank = self.db.get_player_alltime_rank(discord_id)
 
             # Create embed
             embed = discord.Embed(
@@ -111,21 +113,36 @@ class StatsCommands(commands.Cog):
                 color=discord.Color.blue()
             )
 
+            # Weekly stats
             embed.add_field(name="Daily Count", value=f"🎯 {stats['daily_count']}", inline=True)
             embed.add_field(name="Weekly Count", value=f"📅 {stats['weekly_count']}", inline=True)
-            embed.add_field(name="Weekly Rank", value=f"🏅 #{rank}", inline=True)
+            embed.add_field(name="Weekly Rank", value=f"🏅 #{weekly_rank}", inline=True)
 
-            # Add motivational message based on rank
-            if rank == 1:
-                motivation = "You're #1! Keep dominating! 👑"
-            elif rank <= 3:
-                motivation = "Top 3! So close to #1! 🔥"
-            elif rank <= 5:
-                motivation = "Top 5! Keep pushing! 💪"
-            else:
-                motivation = "Keep training to climb the ranks! 🎯"
+            # All-time stats
+            if alltime_stats:
+                embed.add_field(
+                    name="All-Time Total",
+                    value=f"🏆 {alltime_stats['total_submissions']} sessions",
+                    inline=True
+                )
+                embed.add_field(
+                    name="All-Time Rank",
+                    value=f"🌟 #{alltime_rank}",
+                    inline=True
+                )
+                embed.add_field(name="\u200b", value="\u200b", inline=True)  # Empty field for spacing
 
-            embed.add_field(name="Status", value=motivation, inline=False)
+            # # Add motivational message based on rank
+            # if rank == 1:
+            #     motivation = "You're #1! Keep dominating! 👑"
+            # elif rank <= 3:
+            #     motivation = "Top 3! So close to #1! 🔥"
+            # elif rank <= 5:
+            #     motivation = "Top 5! Keep pushing! 💪"
+            # else:
+            #     motivation = "Keep training to climb the ranks! 🎯"
+
+            # embed.add_field(name="Status", value=motivation, inline=False)
 
             embed.set_thumbnail(url=ctx.author.avatar.url if ctx.author.avatar else None)
             embed.set_footer(text="Consistency is key!")
@@ -136,6 +153,72 @@ class StatsCommands(commands.Cog):
         except Exception as e:
             logger.error(f"Error displaying user stats: {e}")
             await ctx.send("An error occurred while fetching your stats. Please try again later.")
+
+    @commands.command(name='alltime', aliases=['lifetime', 'total', 'at'])
+    async def alltime(self, ctx):
+        """
+        Display the all-time leaderboard based on total submissions.
+
+        Usage: !alltime or !lifetime or !total or !at
+        """
+        try:
+            leaderboard = self.db.get_alltime_leaderboard()
+
+            if not leaderboard:
+                await ctx.send("No submissions yet.")
+                return
+
+            # Filter out players with 0 submissions
+            active_players = [p for p in leaderboard if p['total_submissions'] > 0]
+
+            if not active_players:
+                await ctx.send("No submissions yet.")
+                return
+
+            # Create embed
+            embed = discord.Embed(
+                title="🏆 All-Time Leaderboard",
+                description="Total submissions since the beginning",
+                color=discord.Color.purple()
+            )
+
+            # Add leaderboard entries (top 10)
+            leaderboard_text = []
+            for player in active_players[:10]:
+                rank = player['rank']
+                username = player['username']
+                total = player['total_submissions']
+
+                # Medal emojis for top 3
+                # medal = ""
+                # if rank == 1:
+                #     medal = "🥇"
+                # elif rank == 2:
+                #     medal = "🥈"
+                # elif rank == 3:
+                #     medal = "🥉"
+                # else:
+                medal = f"`{rank}.`"
+
+                leaderboard_text.append(
+                    f"{medal} **{username}** - {total} sessions"
+                )
+
+            embed.add_field(
+                name="Rankings",
+                value="\n".join(leaderboard_text),
+                inline=False
+            )
+
+            # Add total players count
+            embed.set_footer(text=f"Total active players: {len(active_players)}")
+
+            await ctx.send(embed=embed)
+            logger.info(f"All-time leaderboard requested by {ctx.author.name}")
+
+        except Exception as e:
+            logger.error(f"Error displaying all-time leaderboard: {e}")
+            await ctx.send("An error occurred while fetching the all-time leaderboard. Please try again later.")
 
 
 async def setup(bot):

@@ -84,12 +84,67 @@ async def daily_reset_job(bot):
 async def weekly_reset_job(bot):
     """
     Job function for weekly counter reset.
+    Sends weekly leaderboard before resetting counters.
 
     Args:
         bot: The bot instance
     """
     try:
         logger.info("Running weekly reset job...")
+
+        # Get leaderboard BEFORE resetting
+        leaderboard = bot.db.get_leaderboard()
+
+        # Send weekly leaderboard message
+        try:
+            channel = bot.get_channel(bot.tracking_channel_id)
+            if channel:
+                import discord
+
+                embed = discord.Embed(
+                    title="📊 Weekly Leaderboard - Final Standings",
+                    description="Here are the final standings for this week!",
+                    color=discord.Color.blue()
+                )
+
+                if leaderboard:
+                    # Filter out players with 0 sessions
+                    active_players = [p for p in leaderboard if p['weekly_count'] > 0]
+
+                    if active_players:
+                        leaderboard_text = []
+                        for player in active_players:
+                            rank = player['rank']
+                            username = player['username']
+                            weekly = player['weekly_count']
+                            leaderboard_text.append(f"`{rank}.` **{username}** - {weekly} sessions")
+
+                        embed.add_field(
+                            name="Final Standings",
+                            value="\n".join(leaderboard_text),
+                            inline=False
+                        )
+                    else:
+                        embed.add_field(
+                            name="Final Standings",
+                            value="No submissions this week.",
+                            inline=False
+                        )
+
+                embed.add_field(
+                    name="🔄 Weekly Reset",
+                    value="Weekly counters have been reset. New week starts now!",
+                    inline=False
+                )
+                embed.set_footer(text="Keep up the grind! 🎯")
+
+                await channel.send(embed=embed)
+                logger.info("Weekly leaderboard message sent")
+
+        except Exception as e:
+            logger.error(f"Error sending weekly leaderboard message: {e}")
+
+        # Now reset the counters
         bot.db.reset_weekly_counters()
         logger.info("Weekly reset completed successfully")
 
