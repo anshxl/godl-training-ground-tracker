@@ -102,8 +102,7 @@ async def weekly_reset_job(bot):
                 import discord
 
                 embed = discord.Embed(
-                    title="📊 Weekly Leaderboard - Final Standings",
-                    description="Here are the final standings for this week!",
+                    title="Weekly Recap",
                     color=discord.Color.blue()
                 )
 
@@ -119,24 +118,9 @@ async def weekly_reset_job(bot):
                             weekly = player['weekly_count']
                             leaderboard_text.append(f"`{rank}.` **{username}** - {weekly} sessions")
 
-                        embed.add_field(
-                            name="Final Standings",
-                            value="\n".join(leaderboard_text),
-                            inline=False
-                        )
+                        embed.description = "\n".join(leaderboard_text)
                     else:
-                        embed.add_field(
-                            name="Final Standings",
-                            value="No submissions this week.",
-                            inline=False
-                        )
-
-                embed.add_field(
-                    name="🔄 Weekly Reset",
-                    value="Weekly counters have been reset. New week starts now!",
-                    inline=False
-                )
-                embed.set_footer(text="Keep up the grind! 🎯")
+                        embed.description = "No submissions this week."
 
                 await channel.send(embed=embed)
                 logger.info("Weekly leaderboard message sent")
