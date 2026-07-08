@@ -177,7 +177,7 @@ class StatsCommands(commands.Cog):
 
             # Create embed
             embed = discord.Embed(
-                title="🏆 All-Time Leaderboard",
+                title="All-Time Leaderboard",
                 description="Total submissions since the beginning",
                 color=discord.Color.purple()
             )
