@@ -64,8 +64,8 @@ def db_with_submissions(db_with_players):
         Database: Database with submissions
     """
     # Add submissions for different players
-    db_with_players.log_submission("user1", "https://example.com/img1.png")
-    db_with_players.log_submission("user2", "https://example.com/img2.png")
-    db_with_players.log_submission("user3", "https://example.com/img4.png")
+    db_with_players.log_submission("user1", "https://example.com/img1.png", "img1.png")
+    db_with_players.log_submission("user2", "https://example.com/img2.png", "img2.png")
+    db_with_players.log_submission("user3", "https://example.com/img4.png", "img4.png")
 
     return db_with_players

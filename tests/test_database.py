@@ -45,42 +45,43 @@ class TestSubmissions:
         db = db_with_players
         
         # Log submission
-        db.log_submission("user1", "https://example.com/test.png")
+        db.log_submission("user1", "https://example.com/test.png", "test.png")
         
         # Check if submission was logged
-        assert db.has_submitted_today("user1") is True
+        assert db.has_duplicate_filename("user1", "test.png") is True
         
         # Check counters were incremented
         stats = db.get_player_stats("user1")
         assert stats['daily_count'] == 1
         assert stats['weekly_count'] == 1
 
-    def test_has_submitted_today_false(self, db_with_players):
-        """Test that has_submitted_today returns False for no submissions."""
+    def test_has_duplicate_filename_false(self, db_with_players):
+        """Test that has_duplicate_filename returns False for no submissions."""
         db = db_with_players
-        assert db.has_submitted_today("user1") is False
+        assert db.has_duplicate_filename("user1", "test.png") is False
 
-    def test_has_submitted_today_true(self, db_with_players):
-        """Test that has_submitted_today returns True after submission."""
+    def test_has_duplicate_filename_true(self, db_with_players):
+        """Test that has_duplicate_filename returns True after submission."""
         db = db_with_players
-        db.log_submission("user1", "https://example.com/test.png")
-        assert db.has_submitted_today("user1") is True
+        db.log_submission("user1", "https://example.com/test.png", "test.png")
+        assert db.has_duplicate_filename("user1", "test.png") is True
+
+    def test_duplicate_filename_is_per_player(self, db_with_players):
+        """Test that another player's filename does not count as a duplicate."""
+        db = db_with_players
+        db.log_submission("user1", "https://example.com/test.png", "test.png")
+        assert db.has_duplicate_filename("user2", "test.png") is False
 
     def test_multiple_submissions_same_day(self, db_with_players):
-        """Test that duplicate submissions on same day are detected."""
+        """Test that several distinct files on the same day all count."""
         db = db_with_players
         
-        # First submission
-        db.log_submission("user1", "https://example.com/test1.png")
-        assert db.has_submitted_today("user1") is True
+        db.log_submission("user1", "https://example.com/test1.png", "test1.png")
+        db.log_submission("user1", "https://example.com/test2.png", "test2.png")
         
-        # Check counter after first submission
         stats = db.get_player_stats("user1")
-        first_count = stats['daily_count']
-        
-        # Attempt second submission - should be detected
-        # (In real bot, this would be blocked before calling log_submission)
-        assert db.has_submitted_today("user1") is True
+        assert stats['daily_count'] == 2
+        assert stats['weekly_count'] == 2
 
 
 class TestCounters:
@@ -91,7 +92,7 @@ class TestCounters:
         db = db_with_players
         
         # Log submission
-        db.log_submission("user1", "https://example.com/test.png")
+        db.log_submission("user1", "https://example.com/test.png", "test.png")
         
         stats = db.get_player_stats("user1")
         assert stats['daily_count'] == 1
@@ -102,9 +103,9 @@ class TestCounters:
         db = db_with_players
         
         # Log submissions for multiple users
-        db.log_submission("user1", "https://example.com/test1.png")
-        db.log_submission("user2", "https://example.com/test2.png")
-        db.log_submission("user3", "https://example.com/test3.png")
+        db.log_submission("user1", "https://example.com/test1.png", "test1.png")
+        db.log_submission("user2", "https://example.com/test2.png", "test2.png")
+        db.log_submission("user3", "https://example.com/test3.png", "test3.png")
         
         # Verify counters are set
         assert db.get_player_stats("user1")['daily_count'] == 1
@@ -125,8 +126,8 @@ class TestCounters:
         db = db_with_players
 
         # Log submissions
-        db.log_submission("user1", "https://example.com/test1.png")
-        db.log_submission("user2", "https://example.com/test2.png")
+        db.log_submission("user1", "https://example.com/test1.png", "test1.png")
+        db.log_submission("user2", "https://example.com/test2.png", "test2.png")
 
         # Verify counters are set
         assert db.get_player_stats("user1")['weekly_count'] == 1
@@ -160,21 +161,21 @@ class TestLeaderboard:
         db = db_with_players
         
         # User1: 1 submission
-        db.log_submission("user1", "https://example.com/test1.png")
+        db.log_submission("user1", "https://example.com/test1.png", "test1.png")
         
         # User2: 2 submissions (need to simulate different days)
         # For testing purposes, we'll add multiple submissions
-        db.log_submission("user2", "https://example.com/test2.png")
+        db.log_submission("user2", "https://example.com/test2.png", "test2.png")
         # Reset daily to allow another submission
         db.reset_daily_counters()
-        db.log_submission("user2", "https://example.com/test3.png")
+        db.log_submission("user2", "https://example.com/test3.png", "test3.png")
         
         # User3: 3 submissions
-        db.log_submission("user3", "https://example.com/test4.png")
+        db.log_submission("user3", "https://example.com/test4.png", "test4.png")
         db.reset_daily_counters()
-        db.log_submission("user3", "https://example.com/test5.png")
+        db.log_submission("user3", "https://example.com/test5.png", "test5.png")
         db.reset_daily_counters()
-        db.log_submission("user3", "https://example.com/test6.png")
+        db.log_submission("user3", "https://example.com/test6.png", "test6.png")
         
         # Get leaderboard
         leaderboard = db.get_leaderboard()
@@ -197,9 +198,9 @@ class TestLeaderboard:
         db = db_with_players
         
         # Add submissions
-        db.log_submission("user1", "https://example.com/test1.png")
-        db.log_submission("user2", "https://example.com/test2.png")
-        db.log_submission("user3", "https://example.com/test3.png")
+        db.log_submission("user1", "https://example.com/test1.png", "test1.png")
+        db.log_submission("user2", "https://example.com/test2.png", "test2.png")
+        db.log_submission("user3", "https://example.com/test3.png", "test3.png")
         
         leaderboard = db.get_leaderboard()
         
@@ -213,12 +214,12 @@ class TestLeaderboard:
         db = db_with_players
         
         # User1: 1 submission
-        db.log_submission("user1", "https://example.com/test1.png")
+        db.log_submission("user1", "https://example.com/test1.png", "test1.png")
         
         # User2: 2 submissions
-        db.log_submission("user2", "https://example.com/test2.png")
+        db.log_submission("user2", "https://example.com/test2.png", "test2.png")
         db.reset_daily_counters()
-        db.log_submission("user2", "https://example.com/test3.png")
+        db.log_submission("user2", "https://example.com/test3.png", "test3.png")
         
         # User3: 0 submissions
         
@@ -237,8 +238,8 @@ class TestLeaderboard:
         db = db_with_players
         
         # Add submissions
-        db.log_submission("user1", "https://example.com/test1.png")
-        db.log_submission("user2", "https://example.com/test2.png")
+        db.log_submission("user1", "https://example.com/test1.png", "test1.png")
+        db.log_submission("user2", "https://example.com/test2.png", "test2.png")
         
         # Verify counts
         assert db.get_player_stats("user1")['weekly_count'] == 1
@@ -259,9 +260,9 @@ class TestIntegration:
         db = db_with_players
 
         # Week 1: Add submissions
-        db.log_submission("user1", "https://example.com/w1_d1.png")
+        db.log_submission("user1", "https://example.com/w1_d1.png", "w1_d1.png")
         db.reset_daily_counters()
-        db.log_submission("user1", "https://example.com/w1_d2.png")
+        db.log_submission("user1", "https://example.com/w1_d2.png", "w1_d2.png")
 
         # Check week 1 stats
         stats_w1 = db.get_player_stats("user1")
@@ -277,7 +278,7 @@ class TestIntegration:
         assert stats_after_reset['weekly_count'] == 0
         
         # Week 2: Add new submissions
-        db.log_submission("user1", "https://example.com/w2_d1.png")
+        db.log_submission("user1", "https://example.com/w2_d1.png", "w2_d1.png")
         
         # Check week 2 stats
         stats_w2 = db.get_player_stats("user1")
@@ -289,21 +290,21 @@ class TestIntegration:
         db = db_with_players
         
         # Day 1
-        db.log_submission("user1", "https://example.com/u1_d1.png")
-        db.log_submission("user2", "https://example.com/u2_d1.png")
-        db.log_submission("user3", "https://example.com/u3_d1.png")
+        db.log_submission("user1", "https://example.com/u1_d1.png", "u1_d1.png")
+        db.log_submission("user2", "https://example.com/u2_d1.png", "u2_d1.png")
+        db.log_submission("user3", "https://example.com/u3_d1.png", "u3_d1.png")
         
         # Check all submitted
-        assert db.has_submitted_today("user1")
-        assert db.has_submitted_today("user2")
-        assert db.has_submitted_today("user3")
+        assert db.has_duplicate_filename("user1", "u1_d1.png")
+        assert db.has_duplicate_filename("user2", "u2_d1.png")
+        assert db.has_duplicate_filename("user3", "u3_d1.png")
         
         # Daily reset
         db.reset_daily_counters()
         
         # Day 2 - only user1 and user2 submit
-        db.log_submission("user1", "https://example.com/u1_d2.png")
-        db.log_submission("user2", "https://example.com/u2_d2.png")
+        db.log_submission("user1", "https://example.com/u1_d2.png", "u1_d2.png")
+        db.log_submission("user2", "https://example.com/u2_d2.png", "u2_d2.png")
         
         # Check leaderboard
         leaderboard = db.get_leaderboard()
