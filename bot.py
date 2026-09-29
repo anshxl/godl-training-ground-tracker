@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 from database import Database
 from handlers.scheduler import setup_scheduler
+from handlers.training_api import start_training_api
 
 # Load environment variables
 load_dotenv()
@@ -58,6 +59,7 @@ class AimTrackerBot(commands.Bot):
         self.tracking_channel_id = int(os.getenv('TRACKING_CHANNEL_ID'))
         self.admin_role_id = int(os.getenv('ADMIN_ROLE_ID'))
         self.timezone = os.getenv('TIMEZONE', 'America/New_York')
+        self.training_api_runner = None
 
     async def setup_hook(self):
         """Called when the bot is starting up. Load extensions here."""
@@ -79,6 +81,15 @@ class AimTrackerBot(commands.Bot):
         # Setup scheduler for automated resets
         setup_scheduler(self)
         logger.info("Scheduler setup complete")
+
+        # Read-only training API (only when TRAINING_API_TOKEN is set)
+        await start_training_api(self)
+
+    async def close(self):
+        """Stop the training API (if running), then close the bot."""
+        if self.training_api_runner:
+            await self.training_api_runner.cleanup()
+        await super().close()
 
     async def on_ready(self):
         """Called when the bot is ready and connected to Discord."""

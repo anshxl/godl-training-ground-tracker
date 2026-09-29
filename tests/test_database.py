@@ -317,3 +317,110 @@ class TestIntegration:
         assert user1_entry['weekly_count'] == 2
         assert user2_entry['weekly_count'] == 2
         assert user3_entry['weekly_count'] == 1  # Only submitted day 1
+
+
+class TestSubmissionDateTimezone:
+    """submission_date uses the TIMEZONE date, not the server's date."""
+
+    def test_02_utc_stores_previous_new_york_date(self, db_with_players):
+        from datetime import datetime, timezone
+        db = db_with_players
+        db.clock = lambda: datetime(2026, 9, 1, 2, 0, tzinfo=timezone.utc)
+
+        db.log_submission("user1", "https://example.com/tz.png", "tz.png")
+
+        row = db.conn.execute(
+            "SELECT submission_date FROM submissions WHERE filename = 'tz.png'"
+        ).fetchone()
+        assert row["submission_date"] == "2026-08-31"
+
+
+def log_on(db, discord_id, day, filename):
+    """Log a submission at 16:00 UTC (noon in New York) on the given YYYY-MM-DD day."""
+    from datetime import datetime, timezone
+    y, m, d = map(int, day.split("-"))
+    db.clock = lambda: datetime(y, m, d, 16, 0, tzinfo=timezone.utc)
+    db.log_submission(discord_id, f"https://example.com/{filename}", filename)
+
+
+class TestMonthlySummary:
+    """Tests for monthly_summary(year, month)."""
+
+    def test_sessions_and_distinct_days(self, db_with_players):
+        db = db_with_players
+        log_on(db, "user1", "2026-09-02", "a.png")
+        log_on(db, "user1", "2026-09-02", "b.png")
+        log_on(db, "user1", "2026-09-05", "c.png")
+        log_on(db, "user2", "2026-09-03", "d.png")
+
+        summary = db.monthly_summary(2026, 9)
+
+        assert summary["players"] == [
+            {"username": "TestPlayer1", "sessions": 3, "days_trained": 2},
+            {"username": "TestPlayer2", "sessions": 1, "days_trained": 1},
+        ]
+
+    def test_zero_session_players_omitted(self, db_with_players):
+        db = db_with_players
+        log_on(db, "user2", "2026-09-03", "d.png")
+
+        names = [p["username"] for p in db.monthly_summary(2026, 9)["players"]]
+
+        assert names == ["TestPlayer2"]
+
+    def test_ties_sorted_by_username(self, db_with_players):
+        db = db_with_players
+        log_on(db, "user3", "2026-09-03", "a.png")
+        log_on(db, "user1", "2026-09-03", "b.png")
+
+        names = [p["username"] for p in db.monthly_summary(2026, 9)["players"]]
+
+        assert names == ["TestPlayer1", "TestPlayer3"]
+
+    def test_daily_rows(self, db_with_players):
+        db = db_with_players
+        log_on(db, "user1", "2026-09-02", "a.png")
+        log_on(db, "user1", "2026-09-02", "b.png")
+        log_on(db, "user2", "2026-09-02", "c.png")
+        log_on(db, "user1", "2026-09-05", "d.png")
+
+        assert db.monthly_summary(2026, 9)["daily"] == [
+            {"date": "2026-09-02", "username": "TestPlayer1", "sessions": 2},
+            {"date": "2026-09-02", "username": "TestPlayer2", "sessions": 1},
+            {"date": "2026-09-05", "username": "TestPlayer1", "sessions": 1},
+        ]
+
+    def test_last_day_of_month_belongs_to_that_month(self, db_with_players):
+        db = db_with_players
+        log_on(db, "user1", "2026-08-31", "a.png")
+        log_on(db, "user1", "2026-09-01", "b.png")
+
+        aug = db.monthly_summary(2026, 8)
+        sep = db.monthly_summary(2026, 9)
+
+        assert aug["players"] == [{"username": "TestPlayer1", "sessions": 1, "days_trained": 1}]
+        assert [d["date"] for d in aug["daily"]] == ["2026-08-31"]
+        assert [d["date"] for d in sep["daily"]] == ["2026-09-01"]
+
+    def test_december_to_january(self, db_with_players):
+        db = db_with_players
+        log_on(db, "user1", "2026-12-31", "a.png")
+        log_on(db, "user1", "2027-01-01", "b.png")
+        log_on(db, "user1", "2027-01-02", "c.png")
+
+        dec = db.monthly_summary(2026, 12)
+        jan = db.monthly_summary(2027, 1)
+
+        assert dec["players"][0]["sessions"] == 1
+        assert jan["players"][0]["sessions"] == 2
+
+    def test_months_with_any_submission(self, db_with_players):
+        db = db_with_players
+        log_on(db, "user1", "2027-01-01", "a.png")
+        log_on(db, "user1", "2026-08-31", "b.png")
+        log_on(db, "user2", "2026-12-31", "c.png")
+
+        assert db.monthly_summary(2026, 9)["months"] == ["2026-08", "2026-12", "2027-01"]
+
+    def test_empty_month(self, temp_db):
+        assert temp_db.monthly_summary(2026, 9) == {"players": [], "daily": [], "months": []}

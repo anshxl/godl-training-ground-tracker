@@ -3,10 +3,12 @@ Database module for Discord Aim Training Tracker Bot.
 Handles SQLite database connection, schema creation, and all database operations.
 """
 
+import os
 import sqlite3
 import logging
-from datetime import datetime, date
+from datetime import datetime, timezone as dt_timezone
 from typing import Optional, List, Dict, Any
+from zoneinfo import ZoneInfo
 import json
 
 logger = logging.getLogger(__name__)
@@ -15,14 +17,17 @@ logger = logging.getLogger(__name__)
 class Database:
     """SQLite database handler for the aim training tracker."""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, timezone: Optional[str] = None):
         """
         Initialize database connection and create tables if they don't exist.
 
         Args:
             db_path: Path to the SQLite database file
+            timezone: IANA zone for submission dates (default: TIMEZONE env, else America/New_York)
         """
         self.db_path = db_path
+        self.timezone = ZoneInfo(timezone or os.getenv('TIMEZONE', 'America/New_York'))
+        self.clock = lambda: datetime.now(dt_timezone.utc)  # replaceable in tests
         self.conn = None
         self._connect()
         self._create_tables()
@@ -114,6 +119,10 @@ class Database:
             self.conn.rollback()
             raise
 
+    def today(self) -> str:
+        """Today's date in the configured timezone, as YYYY-MM-DD."""
+        return self.clock().astimezone(self.timezone).date().isoformat()
+
     # Submission Management
     def has_duplicate_filename(self, discord_id: str, filename: str) -> bool:
         """
@@ -151,7 +160,7 @@ class Database:
             filename: Name of the submitted file
         """
         cursor = self.conn.cursor()
-        today = date.today().isoformat()
+        today = self.today()
 
         try:
             # Insert submission record
@@ -373,6 +382,45 @@ class Database:
             if player['discord_id'] == discord_id:
                 return player['rank']
         return None
+
+    def monthly_summary(self, year: int, month: int) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Summarize submissions for one calendar month.
+
+        Returns:
+            {'players': [{username, sessions, days_trained}] sorted by sessions desc then username,
+             'daily': [{date, username, sessions}] sorted by date then username,
+             'months': ['YYYY-MM', ...] months with any submission, ascending}
+            Players with no submissions in the month are omitted.
+        """
+        key = f"{year:04d}-{month:02d}"
+        players = self.conn.execute("""
+            SELECT p.username, COUNT(*) AS sessions,
+                   COUNT(DISTINCT s.submission_date) AS days_trained
+            FROM submissions s
+            JOIN players p ON p.discord_id = s.discord_id
+            WHERE substr(s.submission_date, 1, 7) = ?
+            GROUP BY p.discord_id, p.username
+            ORDER BY sessions DESC, p.username ASC
+        """, (key,)).fetchall()
+        daily = self.conn.execute("""
+            SELECT s.submission_date AS date, p.username, COUNT(*) AS sessions
+            FROM submissions s
+            JOIN players p ON p.discord_id = s.discord_id
+            WHERE substr(s.submission_date, 1, 7) = ?
+            GROUP BY s.submission_date, p.discord_id, p.username
+            ORDER BY s.submission_date ASC, p.username ASC
+        """, (key,)).fetchall()
+        months = self.conn.execute("""
+            SELECT DISTINCT substr(submission_date, 1, 7) AS month
+            FROM submissions
+            ORDER BY month ASC
+        """).fetchall()
+        return {
+            'players': [dict(r) for r in players],
+            'daily': [dict(r) for r in daily],
+            'months': [r['month'] for r in months],
+        }
 
     # Admin Functions
     def set_player_counter(self, discord_id: str, counter_type: str, value: int):
