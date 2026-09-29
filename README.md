@@ -99,6 +99,10 @@ DISCORD_TOKEN=your_bot_token_here
 TRACKING_CHANNEL_ID=123456789012345678
 ADMIN_ROLE_ID=987654321098765432
 TIMEZONE=America/New_York
+# Optional: read-only /training endpoint for the cdm_stats dashboard.
+# The web server starts only when the token is set.
+TRAINING_API_TOKEN=
+PORT=8080
 ```
 
 **How to get IDs:**
