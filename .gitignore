@@ -41,3 +41,6 @@ data/*.db-journal
 build/
 dist/
 *.egg-info/
+# Local only: design notes and downloaded player screenshots
+docs/
+training_data/

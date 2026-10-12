@@ -5,7 +5,6 @@ Admin commands for managing the tracker bot.
 import logging
 import discord
 from discord.ext import commands
-from discord import app_commands
 
 logger = logging.getLogger(__name__)
 

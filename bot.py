@@ -125,6 +125,8 @@ def main():
         logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
         logger.error("Please create a .env file based on .env.example")
         return
+    if not os.getenv('GEMINI_API_KEY'):
+        logger.warning("GEMINI_API_KEY not set: screenshots are not validated, every image is accepted")
 
     # Initialize database
     db_path = config['database_path']

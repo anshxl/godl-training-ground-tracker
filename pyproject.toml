@@ -1,7 +1,7 @@
 [project]
 name = "discord-bot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Discord bot that tracks daily aim training screenshots"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -10,7 +10,6 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "pytz>=2025.2",
     "google-genai>=1.0.0",
-    "requests>=2.31.0",
     "c2pa-python>=0.4.0",
 ]
 

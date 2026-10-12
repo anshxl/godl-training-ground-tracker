@@ -41,44 +41,33 @@ class MessageHandler(commands.Cog):
         if message.channel.id != self.tracking_channel_id:
             return
 
-        # Check if message has image attachments
-        if not self._has_image_attachment(message):
+        # The first image attachment is the submission
+        image = self._first_image(message)
+        if image is None:
             return
 
-        # Process the submission
-        await self._process_submission(message)
+        await self._process_submission(message, image)
 
-    def _has_image_attachment(self, message: discord.Message) -> bool:
-        """
-        Check if a message has at least one image attachment.
-
-        Args:
-            message: The Discord message object
-
-        Returns:
-            True if message has image attachment, False otherwise
-        """
-        if not message.attachments:
-            return False
-
-        # Check for image file types
-        image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+    def _first_image(self, message: discord.Message):
+        """Return the first image attachment of a message, or None."""
+        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.webp')
         for attachment in message.attachments:
-            if any(attachment.filename.lower().endswith(ext) for ext in image_extensions):
-                return True
-        return False
+            if attachment.filename.lower().endswith(image_extensions):
+                return attachment
+        return None
 
-    async def _process_submission(self, message: discord.Message):
+    async def _process_submission(self, message: discord.Message, image: discord.Attachment):
         """
         Process a screenshot submission.
 
         Args:
             message: The Discord message object
+            image: The image attachment to validate and log
         """
         discord_id = str(message.author.id)
         username = message.author.name
-        image_url = message.attachments[0].url
-        filename = message.attachments[0].filename
+        image_url = image.url
+        filename = image.filename
 
         try:
             # Add or update player in database
@@ -92,7 +81,9 @@ class MessageHandler(commands.Cog):
 
             # Validate image using Gemini VLM
             logger.info(f"Validating screenshot from {username} ({discord_id})")
-            is_valid, validation_reason = await validate_aim_screenshot(image_url)
+            is_valid, validation_reason = await validate_aim_screenshot(
+                await image.read(), image.content_type or 'image/jpeg'
+            )
 
             if not is_valid:
                 await self._send_invalid_screenshot_message(message, validation_reason)
@@ -133,7 +124,6 @@ class MessageHandler(commands.Cog):
         embed.add_field(name="Daily Count", value=f"{stats['daily_count']}", inline=True)
         embed.add_field(name="Weekly Count", value=f"{stats['weekly_count']}", inline=True)
         embed.set_thumbnail(url=message.author.avatar.url if message.author.avatar else None)
-        # embed.set_footer(text="Keep up the grind! 🎯")
 
         await message.add_reaction('✅')
         await message.channel.send(embed=embed)
@@ -156,11 +146,6 @@ class MessageHandler(commands.Cog):
             value=f"`{filename}`",
             inline=False
         )
-        # embed.add_field(
-        #     name="Tip",
-        #     value="To submit a new session, use a different screenshot or rename your file.",
-        #     inline=False
-        # )
         embed.set_footer(text="Duplicate prevention active")
 
         await message.add_reaction('⚠️')
@@ -184,16 +169,6 @@ class MessageHandler(commands.Cog):
             value=reason,
             inline=False
         )
-        # embed.add_field(
-        #     name="Valid Submissions Must Include:",
-        #     value=(
-        #         "✅ **Mission Complete** or results screen\n"
-        #         "✅ Performance stats (accuracy, kills, headshots, etc.)\n"
-        #         "✅ From aim training modes or practice ranges\n\n"
-        #         "Examples: Call of Duty practice mode, Aimlabs, Kovaak's, 3D Aim Trainer"
-        #     ),
-        #     inline=False
-        # )
         embed.set_footer(text="Submit a valid screenshot")
 
         await message.add_reaction('❌')

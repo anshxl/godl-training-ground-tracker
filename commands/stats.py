@@ -39,7 +39,6 @@ class StatsCommands(commands.Cog):
             # Create embed
             embed = discord.Embed(
                 title="Weekly Leaderboard",
-                # description="Top aim trainers this week",
                 color=discord.Color.gold()
             )
 
@@ -51,19 +50,8 @@ class StatsCommands(commands.Cog):
                 daily = player['daily_count']
                 weekly = player['weekly_count']
 
-                # Medal emojis for top 3
-                medal = f"`{rank}.`"
-                # if rank == 1:
-                #     medal = "🥇"
-                # elif rank == 2:
-                #     medal = "🥈"
-                # elif rank == 3:
-                #     medal = "🥉"
-                # else:
-                #     medal = f"`{rank}.`"
-
                 leaderboard_text.append(
-                    f"{medal} **{username}** - Daily: {daily} | Weekly: {weekly}"
+                    f"`{rank}.` **{username}** - Daily: {daily} | Weekly: {weekly}"
                 )
 
             embed.add_field(
@@ -132,18 +120,6 @@ class StatsCommands(commands.Cog):
                 )
                 embed.add_field(name="\u200b", value="\u200b", inline=True)  # Empty field for spacing
 
-            # # Add motivational message based on rank
-            # if rank == 1:
-            #     motivation = "You're #1! Keep dominating! 👑"
-            # elif rank <= 3:
-            #     motivation = "Top 3! So close to #1! 🔥"
-            # elif rank <= 5:
-            #     motivation = "Top 5! Keep pushing! 💪"
-            # else:
-            #     motivation = "Keep training to climb the ranks! 🎯"
-
-            # embed.add_field(name="Status", value=motivation, inline=False)
-
             embed.set_thumbnail(url=ctx.author.avatar.url if ctx.author.avatar else None)
             embed.set_footer(text="Consistency is key!")
 
@@ -189,19 +165,8 @@ class StatsCommands(commands.Cog):
                 username = player['username']
                 total = player['total_submissions']
 
-                # Medal emojis for top 3
-                # medal = ""
-                # if rank == 1:
-                #     medal = "🥇"
-                # elif rank == 2:
-                #     medal = "🥈"
-                # elif rank == 3:
-                #     medal = "🥉"
-                # else:
-                medal = f"`{rank}.`"
-
                 leaderboard_text.append(
-                    f"{medal} **{username}** - {total} sessions"
+                    f"`{rank}.` **{username}** - {total} sessions"
                 )
 
             embed.add_field(

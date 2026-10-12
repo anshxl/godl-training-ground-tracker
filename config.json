@@ -3,6 +3,5 @@
   "daily_reset_hour": 0,
   "weekly_reset_day": 6,
   "weekly_reset_hour": 0,
-  "database_path": "data/tracker.db",
-  "max_submissions_per_day": 1
+  "database_path": "data/tracker.db"
 }
